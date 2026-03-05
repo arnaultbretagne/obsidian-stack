@@ -1,0 +1,74 @@
+name: Propagate to infra-control
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'docker-compose.yml'
+      - 'sync/**'
+      - 'clipper/**'
+
+jobs:
+  propagate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate app token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.CD_APP_ID }}
+          private-key: ${{ secrets.CD_APP_PRIVATE_KEY }}
+          repositories: "infra-control"
+
+      - name: Get current commit SHA
+        id: sha
+        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Get stack name
+        id: stack
+        run: echo "name=${GITHUB_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
+
+      - name: Install yq
+        uses: mikefarah/yq@master
+
+      - name: Checkout infra-control
+        uses: actions/checkout@v4
+        with:
+          repository: ab-craft/infra-control
+          token: ${{ steps.app-token.outputs.token }}
+          path: infra-control
+
+      - name: Update lock
+        run: |
+          cd infra-control
+          yq -i '.stacks.${{ steps.stack.outputs.name }}.ref = "${{ steps.sha.outputs.sha }}"' locks/prod.yaml
+          yq -i '.stacks.${{ steps.stack.outputs.name }}.deployed_at = "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"' locks/prod.yaml
+          yq -i '.stacks.${{ steps.stack.outputs.name }}.deployed_by = "github-actions[bot]"' locks/prod.yaml
+
+      - name: Create promotion PR
+        id: pr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          path: infra-control
+          branch: promote-${{ steps.stack.outputs.name }}-${{ steps.sha.outputs.sha }}
+          title: "promote: ${{ steps.stack.outputs.name }} → ${{ steps.sha.outputs.sha }}"
+          body: |
+            Triggered by merge in `${{ github.repository }}`
+
+            **Commit:** ${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.sha.outputs.sha }}
+            **Compare:** ${{ github.server_url }}/${{ github.repository }}/compare/${{ github.event.before }}...${{ steps.sha.outputs.sha }}
+          labels: promotion
+
+      - name: Auto-merge promotion PR
+        if: steps.pr.outputs.pull-request-number
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          gh pr merge "${{ steps.pr.outputs.pull-request-number }}" \
+            --auto --squash \
+            --repo ab-craft/infra-control
