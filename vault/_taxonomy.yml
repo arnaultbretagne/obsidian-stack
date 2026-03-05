@@ -1,0 +1,21 @@
+version: 1
+
+taxonomy:
+  ai:
+    llm:
+      prompting: null
+      agents: null
+      rag: null
+    ml: null
+    computer-vision: null
+  distributed-systems:
+    consensus: null
+    storage: null
+  programming:
+    languages: { typescript: null, python: null, rust: null }
+    web: { frontend: null, backend: null, apis: null }
+    patterns: null
+  devops: { kubernetes: null, observability: null, security: null }
+
+proposed: {}
+last_reviewed: null

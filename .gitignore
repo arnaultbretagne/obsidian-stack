@@ -1,4 +1,10 @@
-vault/
 .env
 node_modules/
 dist/
+
+# Vault: track base structure, ignore dynamic content
+vault/*
+!vault/_taxonomy.yml
+!vault/Templates/
+!vault/.obsidian/
+!vault/.claude/

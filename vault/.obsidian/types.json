@@ -1,0 +1,16 @@
+{
+  "types": {
+    "source": "text",
+    "title": "text",
+    "type": "text",
+    "domain": "text",
+    "author": "multitext",
+    "created": "date",
+    "summary": "text",
+    "description": "text",
+    "questions": "multitext",
+    "entities": "multitext",
+    "tags": "tags",
+    "schema_version": "number"
+  }
+}
