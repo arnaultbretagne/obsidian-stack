@@ -1,0 +1,33 @@
+{
+  "name": "obsidian-web-clipper",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "clip": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "start": "node dist/cli.js",
+    "serve": "node dist/server.js"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.13",
+    "defuddle": "^0.7.0",
+    "jsdom": "^24.0.0",
+    "playwright": "^1.50.0",
+    "turndown": "^7.2.0",
+    "turndown-plugin-gfm": "^1.0.2",
+    "yaml": "^2.7.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/jsdom": "^28.0.0",
+    "@types/node": "^22.0.0",
+    "@types/turndown": "^5.0.5",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

@@ -1,0 +1,46 @@
+name: obsidian-stack
+
+volumes:
+  vault:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${VAULT_HOST_PATH:-./vault}
+
+networks:
+  shared:
+    name: proxy-network
+    external: true
+
+services:
+  sync:
+    build: ./sync
+    container_name: obsidian-sync
+    restart: unless-stopped
+    volumes:
+      - vault:/vault
+    environment:
+      OBSIDIAN_AUTH_TOKEN: ${OBSIDIAN_AUTH_TOKEN}
+      VAULT_NAME: ${VAULT_NAME}
+    networks: [shared]
+
+  clipper:
+    build: ./clipper
+    container_name: web-clipper
+    volumes:
+      - vault:/vault
+    environment:
+      VAULT_PATH: /vault
+      BROWSER_TIMEOUT_MS: ${BROWSER_TIMEOUT_MS:-30000}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MODE: server
+      PORT: ${PORT:-3000}
+    ipc: host
+    init: true
+    expose: ["3000"]
+    networks: [shared]
+    deploy:
+      resources:
+        limits:
+          memory: 2g
