@@ -1,6 +1,7 @@
 .env
 node_modules/
 dist/
+sync-config/
 
 # Vault: track base structure, ignore dynamic content
 vault/*
