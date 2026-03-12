@@ -24,6 +24,7 @@ services:
     environment:
       OBSIDIAN_AUTH_TOKEN: ${OBSIDIAN_AUTH_TOKEN}
       VAULT_NAME: ${VAULT_NAME}
+    stop_grace_period: 30s
     networks: [shared]
 
   clipper:

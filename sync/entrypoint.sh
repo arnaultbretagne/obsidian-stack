@@ -8,5 +8,12 @@ if ! ob sync-status --path /vault >/dev/null 2>&1; then
   exec sleep infinity
 fi
 
-# Sync continu
-exec ob sync --path /vault --continuous
+# Retry loop: Obsidian servers may still see the previous session
+MAX_RETRIES=6
+for i in $(seq 1 $MAX_RETRIES); do
+  if ob sync --path /vault --continuous; then
+    break
+  fi
+  echo "Sync failed (attempt $i/$MAX_RETRIES), retrying in 10s..."
+  sleep 10
+done
