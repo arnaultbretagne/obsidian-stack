@@ -14,7 +14,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Generate app token
         id: app-token
@@ -36,7 +36,7 @@ jobs:
         uses: mikefarah/yq@master
 
       - name: Checkout infra-control
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: ab-craft/infra-control
           token: ${{ steps.app-token.outputs.token }}
@@ -51,7 +51,7 @@ jobs:
 
       - name: Create promotion PR
         id: pr
-        uses: peter-evans/create-pull-request@v6
+        uses: peter-evans/create-pull-request@v7
         with:
           token: ${{ steps.app-token.outputs.token }}
           path: infra-control
