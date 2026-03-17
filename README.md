@@ -6,7 +6,7 @@ Stack Docker pour synchroniser un vault Obsidian sur VPS et clipper des pages we
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                  Docker (obsidian-net)               │
+│                  Docker (proxy-network)              │
 │                                                     │
 │  ┌──────────────┐    ┌────────────────────────────┐ │
 │  │ obsidian-sync│    │ web-clipper (HTTP :3000)    │ │
@@ -27,7 +27,7 @@ Stack Docker pour synchroniser un vault Obsidian sur VPS et clipper des pages we
 │         ┌───────────┴───────────┐                   │
 │         │  Autre compose        │                   │
 │         │  (ex. Claude Code)    │                   │
-│         │  réseau: obsidian-net │                   │
+│         │  réseau: proxy-network│                   │
 │         └───────────────────────┘                   │
 └─────────────────────────────────────────────────────┘
 ```
@@ -76,12 +76,6 @@ Le container peut toujours être utilisé en mode CLI one-shot :
 # Clipper une page
 docker compose run --rm -e MODE=cli clipper https://example.com/article
 
-# Avec un template spécifique
-docker compose run --rm -e MODE=cli clipper https://example.com/article -t article
-
-# Bookmark rapide
-docker compose run --rm -e MODE=cli clipper https://example.com -t bookmark
-
 # Avec tags
 docker compose run --rm -e MODE=cli clipper https://example.com --tags ai,research
 
@@ -97,7 +91,7 @@ docker compose run --rm -e MODE=cli clipper https://example.com --dry-run
 ```
 clip <url> [options]
 
-  -t, --template <name>   Template (default, article, bookmark, recipe)
+  -t, --template <name>   Template (défaut: "default")
   --tags <tag1,tag2>       Tags supplémentaires
   --folder <path>          Sous-dossier vault (override template)
   --note <text>            Note à ajouter
@@ -118,11 +112,11 @@ curl http://web-clipper:3000/health
 
 ### `GET /templates`
 
-Liste les templates disponibles.
+Retourne le template chargé depuis le vault.
 
 ```bash
 curl http://web-clipper:3000/templates
-# [{"name":"default","folder":"Clippings","triggers":[],"llmFields":["title","description","tags","author"]},...]
+# [{"name":"default","folder":"Clippings","triggers":[]}]
 ```
 
 ### `POST /clip`
@@ -134,7 +128,6 @@ curl -X POST http://web-clipper:3000/clip \
   -H 'Content-Type: application/json' \
   -d '{
     "url": "https://example.com/article",
-    "template": "article",
     "tags": ["ai", "research"],
     "folder": "Clippings/Articles",
     "dryRun": false
@@ -145,7 +138,7 @@ Réponse :
 
 ```json
 {
-  "filePath": "/vault/Clippings/Articles/Example Article.md",
+  "filePath": "Clippings/Articles/Example Article.md",
   "title": "Example Article",
   "wordCount": 1234,
   "processingTimeMs": 3200
@@ -167,57 +160,31 @@ En cas d'erreur :
 | `note` | string | non | Note à ajouter |
 | `dryRun` | boolean | non | `true` pour preview sans écrire |
 
-## Templates
+## Template
 
-Les templates YAML dans `clipper/templates/` définissent le format de sortie :
+Le clipper utilise un unique template Markdown lu depuis `vault/Templates/Clipping.md`. Ce fichier définit le frontmatter et le body des clippings générés.
 
-| Template | Dossier | Description |
-|----------|---------|-------------|
-| `default` | `Clippings/` | Clipping brut |
-| `article` | `Clippings/Articles/` | Article avec métadonnées |
-| `bookmark` | `Clippings/Bookmarks/` | Lien rapide |
-| `recipe` | `Clippings/Recipes/` | Recette structurée |
+Le template est un fichier `.md` standard avec un bloc YAML frontmatter :
 
-### Structure d'un template
-
-```yaml
-name: article
-triggers:
-  - medium.com
-  - blog
-folder: Clippings/Articles
-fileNameFormat: "{{title}}"
-frontmatter:
-  source: "{{url}}"
-  title: "{{title}}"
-  author: "{{author}}"
-  type: article
-  created: "{{date}}"
-  tags: [clippings, articles]
-noteContent: "{{content}}"
-llmFields:
-  - title
-  - description
-  - tags
-  - author
+```markdown
+---
+source: "{{url}}"
+title: "{{title}}"
+author: "{{author}}"
+created: "{{date}}"
+tags: [clippings]
+---
+{{content}}
 ```
 
-- **triggers** : patterns d'URL pour l'auto-détection du template
-- **fileNameFormat** : template pour le nom de fichier
-- **frontmatter** : métadonnées YAML en en-tête du `.md`
-- **noteContent** : contenu du body avec variables `{{title}}`, `{{author}}`, `{{url}}`, `{{date}}`, `{{content}}`, etc.
-- **llmFields** : champs destinés à être enrichis par un LLM après le clipping
-
-### Ajouter un template
-
-Créer un fichier `.yml` dans `clipper/templates/`. Le template sera automatiquement chargé au démarrage.
+Variables disponibles : `{{title}}`, `{{author}}`, `{{url}}`, `{{domain}}`, `{{date}}`, `{{datetime}}`, `{{published}}`, `{{content}}`, `{{description}}`, `{{tags}}`, `{{note}}`, `{{wordCount}}`.
 
 ## Enrichissement LLM
 
 Le clipper et le LLM sont volontairement séparés :
 
 1. **Le clipper extrait** : Playwright rend la page, Defuddle extrait le contenu, Turndown convertit en Markdown, le fichier `.md` est écrit dans le vault
-2. **Le LLM enrichit** : il lit le `.md`, remplit les champs `llmFields` (résumé, tags, catégorie...), et écrit directement dans le vault
+2. **Le LLM enrichit** : il lit le `.md`, modifie le frontmatter (résumé, tags, catégorie...), et écrit directement dans le vault
 
 Le fichier `.md` est l'interface entre les deux. Cette séparation permet :
 - De clipper sans LLM (bookmarks, archivage)
@@ -226,26 +193,27 @@ Le fichier `.md` est l'interface entre les deux. Cette séparation permet :
 
 ## Réseau Docker
 
-Les deux Docker Compose (obsidian-stack et le container LLM) partagent un réseau nommé `obsidian-net`.
+Les Docker Compose (obsidian-stack et les containers externes) partagent le réseau `proxy-network`.
 
 ### Dans ce compose (obsidian-stack)
-
-Le réseau est déclaré et créé automatiquement :
-
-```yaml
-networks:
-  shared:
-    name: obsidian-net
-```
-
-### Dans l'autre compose (ex. Claude Code)
 
 Le réseau est référencé comme externe :
 
 ```yaml
 networks:
   shared:
-    name: obsidian-net
+    name: proxy-network
+    external: true
+```
+
+### Dans l'autre compose (ex. Claude Code)
+
+Le réseau est également référencé comme externe :
+
+```yaml
+networks:
+  shared:
+    name: proxy-network
     external: true
 
 services:
@@ -262,7 +230,7 @@ Le container LLM peut alors appeler `http://web-clipper:3000/clip` pour déclenc
 
 - **HTTP natif Node** plutôt que Express/Hono : 3 routes suffisent, zéro dépendance ajoutée
 - **Séparation clipper/LLM** : le `.md` comme interface permet de changer chaque composant indépendamment
-- **Réseau Docker externe nommé** : seul moyen propre de faire communiquer deux Docker Compose
+- **Template dans le vault** : le template `Clipping.md` vit dans le vault, ce qui permet de le modifier depuis Obsidian directement
 
 ## Développement
 
@@ -271,15 +239,15 @@ cd clipper
 npm install
 
 # Mode CLI
-VAULT_PATH=../vault TEMPLATES_DIR=./templates npx tsx src/cli.ts https://example.com --dry-run
+VAULT_PATH=../vault npx tsx src/cli.ts https://example.com --dry-run
 
 # Mode serveur
-VAULT_PATH=../vault TEMPLATES_DIR=./templates npx tsx src/server.ts &
+VAULT_PATH=../vault npx tsx src/server.ts &
 curl http://localhost:3000/health
 curl http://localhost:3000/templates
 curl -X POST http://localhost:3000/clip \
   -H 'Content-Type: application/json' \
-  -d '{"url":"https://example.com","template":"bookmark","dryRun":true}'
+  -d '{"url":"https://example.com","dryRun":true}'
 kill %1
 
 # Build
