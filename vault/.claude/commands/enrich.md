@@ -1,6 +1,8 @@
 Read the markdown file at $ARGUMENTS.
 Parse its YAML front-matter and body content.
 
+All front-matter values MUST be written in English, regardless of the document's language.
+
 Step 1 — Load taxonomy:
 Read `_taxonomy.yml` at the vault root.
 Flatten the taxonomy tree into valid tag paths (e.g. `ai/llm/rag`).
@@ -32,6 +34,6 @@ If any `proposed/` tags were used, append to `_taxonomy.yml`
 proposed section with first_seen (today), used_in (this file path),
 count (1). If already proposed, increment count and append to used_in.
 
-Step 5 — Write:
-Edit the front-matter in place. Do NOT modify body content.
-Do NOT change fields that already have values.
+Rules:
+- Edit the front-matter in place. Do NOT modify body content.
+- Do NOT change fields that already have values.
