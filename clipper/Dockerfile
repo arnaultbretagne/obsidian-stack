@@ -16,11 +16,11 @@ RUN chmod +x entrypoint.sh
 
 # Run as non-root so files written to the vault are owned by uid 1000,
 # matching the code-server agent container.
-RUN useradd -m -u 1000 clipper \
-    && chown -R clipper:clipper /app \
-    && mv /root/.cache/ms-playwright /home/clipper/.cache/ms-playwright \
-    && chown -R clipper:clipper /home/clipper/.cache
-USER clipper
+RUN chown -R node:node /app \
+    && mkdir -p /home/node/.cache \
+    && mv /root/.cache/ms-playwright /home/node/.cache/ms-playwright \
+    && chown -R node:node /home/node/.cache
+USER node
 
 EXPOSE 3000
 ENTRYPOINT ["./entrypoint.sh"]

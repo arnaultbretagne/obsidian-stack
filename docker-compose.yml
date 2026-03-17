@@ -20,7 +20,7 @@ services:
     restart: unless-stopped
     volumes:
       - vault:/vault
-      - ./sync-config:/home/obsidian/.config/obsidian-headless
+      - ./sync-config:/home/node/.config/obsidian-headless
     environment:
       OBSIDIAN_AUTH_TOKEN: ${OBSIDIAN_AUTH_TOKEN}
       VAULT_NAME: ${VAULT_NAME}
