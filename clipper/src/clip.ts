@@ -17,6 +17,7 @@ export async function clip(options: ClipOptions): Promise<ClipResult> {
     }
 
     // Pipeline: render → extract → convert → write
+    // render() tries Playwright first, falls back to Jina HTML if enabled.
     const html = await render(options.url);
     if (options.verbose) console.log("Rendered page");
 

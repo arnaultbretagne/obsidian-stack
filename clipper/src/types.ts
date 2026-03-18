@@ -41,6 +41,8 @@ export interface ClipTemplate {
 export interface AppConfig {
   vaultPath: string;
   browserTimeoutMs: number;
+  jinaFallback: boolean;
+  jinaTimeoutMs: number;
   logLevel: string;
   port: number;
 }
