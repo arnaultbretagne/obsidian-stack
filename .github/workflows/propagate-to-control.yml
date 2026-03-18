@@ -28,15 +28,17 @@ jobs:
         id: stack
         run: echo "name=${GITHUB_REPOSITORY#*/}" >> "$GITHUB_OUTPUT"
 
-      - name: Install yq
-        uses: mikefarah/yq@master
-
       - name: Checkout infra-control
         uses: actions/checkout@v6
         with:
           repository: ab-craft/infra-control
           token: ${{ steps.app-token.outputs.token }}
           path: infra-control
+
+      - name: Install yq
+        run: |
+          curl -sSfL https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o /usr/local/bin/yq
+          chmod +x /usr/local/bin/yq
 
       - name: Update lock
         run: |
@@ -45,26 +47,32 @@ jobs:
           yq -i '.stacks.${{ steps.stack.outputs.name }}.deployed_at = "'"$(date -u +%Y-%m-%dT%H:%M:%SZ)"'"' locks/prod.yaml
           yq -i '.stacks.${{ steps.stack.outputs.name }}.deployed_by = "github-actions[bot]"' locks/prod.yaml
 
-      - name: Create promotion PR
-        id: pr
-        uses: peter-evans/create-pull-request@v7
-        with:
-          token: ${{ steps.app-token.outputs.token }}
-          path: infra-control
-          branch: promote-${{ steps.stack.outputs.name }}-${{ steps.sha.outputs.sha }}
-          title: "promote: ${{ steps.stack.outputs.name }} → ${{ steps.sha.outputs.sha }}"
-          body: |
-            Triggered by merge in `${{ github.repository }}`
-
-            **Commit:** ${{ github.server_url }}/${{ github.repository }}/commit/${{ steps.sha.outputs.sha }}
-            **Compare:** ${{ github.server_url }}/${{ github.repository }}/compare/${{ github.event.before }}...${{ steps.sha.outputs.sha }}
-          labels: promotion
-
-      - name: Auto-merge promotion PR
-        if: steps.pr.outputs.pull-request-number
+      - name: Create and merge promotion PR
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
-          gh pr merge "${{ steps.pr.outputs.pull-request-number }}" \
-            --auto --squash \
-            --repo ab-craft/infra-control
+          STACK="${{ steps.stack.outputs.name }}"
+          SHA="${{ steps.sha.outputs.sha }}"
+          BRANCH="promote-${STACK}-${SHA}"
+
+          cd infra-control
+          git checkout -b "$BRANCH"
+          git add locks/prod.yaml
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "promote: ${STACK} → ${SHA}"
+          git push origin "$BRANCH"
+
+          PR_URL=$(gh pr create \
+            --repo ab-craft/infra-control \
+            --head "$BRANCH" \
+            --title "promote: ${STACK} → ${SHA}" \
+            --body "$(cat <<EOF
+          Triggered by merge in \`${{ github.repository }}\`
+
+          **Commit:** ${{ github.server_url }}/${{ github.repository }}/commit/${SHA}
+          **Compare:** ${{ github.server_url }}/${{ github.repository }}/compare/${{ github.event.before }}...${SHA}
+          EOF
+          )" \
+            --label promotion)
+
+          gh pr merge "$PR_URL" --auto --squash --repo ab-craft/infra-control
