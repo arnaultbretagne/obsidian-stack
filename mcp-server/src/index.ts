@@ -23,7 +23,7 @@ async function main() {
     res.json({
       resource: config.serverUrl,
       authorization_servers: [config.issuer],
-      scopes_supported: [],
+      scopes_supported: ["openid"],
       bearer_methods_supported: ["header"],
     });
   });
