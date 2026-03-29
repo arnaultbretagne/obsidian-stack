@@ -46,3 +46,23 @@ services:
       resources:
         limits:
           memory: 2g
+
+  mcp-server:
+    build: ./mcp-server
+    container_name: vault-mcp
+    restart: unless-stopped
+    volumes:
+      - vault:/vault
+    environment:
+      VAULT_PATH: /vault
+      MCP_PORT: ${MCP_PORT:-4000}
+      MCP_SERVER_URL: ${MCP_SERVER_URL:-https://vault.bretagne.dev}
+      POCKET_ID_ISSUER: ${POCKET_ID_ISSUER:-https://id.bretagne.dev}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    expose: ["4000"]
+    networks: [shared]
+    depends_on: [clipper]
+    deploy:
+      resources:
+        limits:
+          memory: 256m

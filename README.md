@@ -226,6 +226,63 @@ services:
 
 Le container LLM peut alors appeler `http://web-clipper:3000/clip` pour déclencher un clip.
 
+## MCP Server (vault-mcp)
+
+Serveur MCP remote qui expose le vault comme un ensemble d'outils composables, accessible depuis Claude.ai, Claude Desktop, et Claude Code via Streamable HTTP + OAuth 2.1.
+
+### Architecture
+
+```
+Claude.ai / Code / Desktop
+       │
+       │ OAuth 2.1 (Authorization Code + PKCE)
+       ▼
+┌──────────────┐
+│  vault-mcp   │  JWT validation + RFC 9728
+│   :4000      │  (/.well-known/oauth-protected-resource)
+└──────┬───────┘
+       │ fs direct
+  ┌────▼────┐
+  │ /vault  │
+  └─────────┘
+```
+
+### Outils (10)
+
+| Outil | Description |
+|-------|-------------|
+| `create_note` | Créer un `.md` avec frontmatter |
+| `read_note` | Lire le contenu brut + stats |
+| `update_note` | Search-and-replace (old_string doit être unique) |
+| `delete_note` | Supprimer une note |
+| `move_note` | Déplacer/renommer |
+| `search_content` | Grep dans le body (après frontmatter) |
+| `search_properties` | Grep dans le frontmatter uniquement |
+| `get_backlinks` | Trouver les notes qui linkent vers une note |
+| `list_properties` | Taxonomie complète (propriétés + valeurs + counts) |
+| `clip_url` | Clipper une URL via le web-clipper interne |
+
+### Variables d'environnement
+
+| Variable | Défaut | Description |
+|----------|--------|-------------|
+| `MCP_PORT` | `4000` | Port du serveur MCP |
+| `MCP_SERVER_URL` | `https://vault.bretagne.dev` | URL publique (pour OAuth metadata) |
+| `POCKET_ID_ISSUER` | `https://id.bretagne.dev` | Issuer OIDC (Pocket ID) |
+| `LOG_LEVEL` | `info` | Niveau de log |
+
+### Write gate
+
+Le serveur valide les écritures sans les transformer :
+- YAML frontmatter parsable avec délimiteurs `---`
+- Types des propriétés conformes à `.obsidian/types.json`
+- Path dans le vault, pas de dotfolders, extension `.md`
+- Taille < 5 MB, UTF-8 valide
+
+### ADRs
+
+Les décisions architecturales sont documentées dans [`docs/adr/`](docs/adr/).
+
 ## Choix architecturaux
 
 - **HTTP natif Node** plutôt que Express/Hono : 3 routes suffisent, zéro dépendance ajoutée
