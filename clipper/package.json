@@ -14,13 +14,13 @@
     "serve": "node dist/server.js"
   },
   "dependencies": {
-    "dayjs": "^1.11.13",
-    "defuddle": "^0.7.0",
+    "dayjs": "^1.11.20",
+    "defuddle": "^0.14.0",
     "jsdom": "^24.0.0",
     "playwright": "^1.50.0",
     "turndown": "^7.2.0",
     "turndown-plugin-gfm": "^1.0.2",
-    "yaml": "^2.7.0",
+    "yaml": "^2.8.3",
     "zod": "^3.24.0"
   },
   "devDependencies": {
