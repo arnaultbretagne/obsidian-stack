@@ -5,6 +5,7 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 import type { Request, Response, NextFunction } from "express";
 import { loadConfig } from "./config.js";
 import { createMcpServer } from "./mcp/server.js";
+import { log } from "./logger.js";
 
 async function main() {
   const config = loadConfig();
@@ -44,7 +45,7 @@ async function main() {
     throw new Error("No jwks_uri in OIDC discovery document");
   }
   const jwks = createRemoteJWKSet(new URL(oidcConfig.jwks_uri));
-  console.log(`JWKS loaded from ${oidcConfig.jwks_uri}`);
+  log.info("JWKS loaded", { jwks_uri: oidcConfig.jwks_uri });
 
   const requireAuth = async (
     req: Request,
@@ -141,11 +142,11 @@ async function main() {
   // ── Start ──────────────────────────────────────────────
 
   const server = app.listen(config.port, () => {
-    console.log(`vault-mcp listening on port ${config.port}`);
+    log.info("vault-mcp listening", { port: config.port });
   });
 
   function shutdown() {
-    console.log("Shutting down...");
+    log.info("Shutting down");
     for (const [id, transport] of sessions) {
       transport.close?.();
       sessions.delete(id);
@@ -159,6 +160,6 @@ async function main() {
 }
 
 main().catch((err) => {
-  console.error("Failed to start:", err);
+  log.error("Failed to start", { error: String(err) });
   process.exit(1);
 });

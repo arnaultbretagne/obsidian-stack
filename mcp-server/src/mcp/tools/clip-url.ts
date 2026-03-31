@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { log } from "../../logger.js";
 
 const CLIPPER_URL = "http://web-clipper:3000/clip";
 
@@ -27,6 +28,7 @@ export function registerClipUrl(server: McpServer): void {
       },
     },
     async ({ url, tags, folder }) => {
+      log.info("clip_url", { url, folder });
       const body: Record<string, unknown> = { url };
       if (tags) body.tags = tags;
       if (folder) body.folder = folder;
@@ -39,6 +41,7 @@ export function registerClipUrl(server: McpServer): void {
 
       if (!res.ok) {
         const err = await res.text();
+        log.error("clip_url failed", { url, status: res.status });
         throw new Error(`Clipper returned ${res.status}: ${err}`);
       }
 
@@ -48,6 +51,7 @@ export function registerClipUrl(server: McpServer): void {
         wordCount: number;
       };
 
+      log.info("clip_url done", { url, path: result.filePath, wordCount: result.wordCount });
       return {
         content: [
           {

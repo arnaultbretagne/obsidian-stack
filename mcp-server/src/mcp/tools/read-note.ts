@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { readNote } from "../../vault/reader.js";
+import { log } from "../../logger.js";
 
 export function registerReadNote(server: McpServer): void {
   server.registerTool(
@@ -20,6 +21,7 @@ export function registerReadNote(server: McpServer): void {
       },
     },
     async ({ path }) => {
+      log.debug("read_note", { path });
       const { content, stats } = await readNote(path);
       return {
         content: [

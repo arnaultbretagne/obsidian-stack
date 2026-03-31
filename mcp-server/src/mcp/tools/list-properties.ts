@@ -1,5 +1,6 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { listProperties } from "../../vault/taxonomy.js";
+import { log } from "../../logger.js";
 
 export function registerListProperties(server: McpServer): void {
   server.registerTool(
@@ -17,6 +18,7 @@ export function registerListProperties(server: McpServer): void {
       ].join("\n"),
     },
     async () => {
+      log.debug("list_properties");
       const properties = await listProperties();
       return {
         content: [
