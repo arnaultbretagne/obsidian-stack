@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { registerCreateNote } from "./tools/create-note.js";
 import { registerReadNote } from "./tools/read-note.js";
@@ -10,9 +11,24 @@ import { registerGetBacklinks } from "./tools/get-backlinks.js";
 import { registerListProperties } from "./tools/list-properties.js";
 import { registerClipUrl } from "./tools/clip-url.js";
 
+const favicon = readFileSync(
+  new URL("../assets/favicon.svg", import.meta.url),
+  "utf-8",
+);
+
 export function createMcpServer(): McpServer {
   const server = new McpServer(
-    { name: "vault-mcp", version: "0.1.0" },
+    {
+      name: "vault-mcp",
+      version: "0.1.0",
+      icons: [
+        {
+          src: `data:image/svg+xml,${encodeURIComponent(favicon)}`,
+          mimeType: "image/svg+xml",
+          sizes: ["any"],
+        },
+      ],
+    },
     {
       capabilities: { tools: {} },
       instructions: [
