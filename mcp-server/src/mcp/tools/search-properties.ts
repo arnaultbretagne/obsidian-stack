@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { searchProperties } from "../../vault/search.js";
+import { log } from "../../logger.js";
 
 export function registerSearchProperties(server: McpServer): void {
   server.registerTool(
@@ -32,7 +33,9 @@ export function registerSearchProperties(server: McpServer): void {
       },
     },
     async ({ query, folder, limit }) => {
+      log.debug("search_properties", { query, folder });
       const results = await searchProperties(query, folder, limit);
+      log.debug("search_properties done", { query, hits: results.length });
       return {
         content: [
           { type: "text" as const, text: JSON.stringify(results, null, 2) },

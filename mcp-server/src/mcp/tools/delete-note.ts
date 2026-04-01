@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { deleteNote } from "../../vault/writer.js";
+import { log } from "../../logger.js";
 
 export function registerDeleteNote(server: McpServer): void {
   server.registerTool(
@@ -19,6 +20,7 @@ export function registerDeleteNote(server: McpServer): void {
       },
     },
     async ({ path }) => {
+      log.warn("delete_note", { path });
       await deleteNote(path);
       return {
         content: [

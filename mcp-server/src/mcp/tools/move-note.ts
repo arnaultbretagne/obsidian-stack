@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { moveNote } from "../../vault/writer.js";
+import { log } from "../../logger.js";
 
 export function registerMoveNote(server: McpServer): void {
   server.registerTool(
@@ -25,6 +26,7 @@ export function registerMoveNote(server: McpServer): void {
       },
     },
     async ({ from_path, to_path }) => {
+      log.info("move_note", { from_path, to_path });
       await moveNote(from_path, to_path);
       return {
         content: [

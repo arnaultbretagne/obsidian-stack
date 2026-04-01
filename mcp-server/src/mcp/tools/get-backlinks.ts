@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { getBacklinks } from "../../vault/links.js";
+import { log } from "../../logger.js";
 
 export function registerGetBacklinks(server: McpServer): void {
   server.registerTool(
@@ -20,6 +21,7 @@ export function registerGetBacklinks(server: McpServer): void {
       },
     },
     async ({ path }) => {
+      log.debug("get_backlinks", { path });
       const backlinks = await getBacklinks(path);
       return {
         content: [

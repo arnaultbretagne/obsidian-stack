@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { updateNote } from "../../vault/writer.js";
+import { log } from "../../logger.js";
 
 export function registerUpdateNote(server: McpServer): void {
   server.registerTool(
@@ -34,6 +35,7 @@ export function registerUpdateNote(server: McpServer): void {
       },
     },
     async ({ path, old_string, new_string }) => {
+      log.info("update_note", { path });
       await updateNote(path, old_string, new_string);
       return {
         content: [
