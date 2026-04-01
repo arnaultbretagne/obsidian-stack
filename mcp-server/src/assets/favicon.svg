@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Fragment+Mono&amp;display=swap');
+    .brace { fill: #f97316; }
+    .letters { fill: #111; }
+    @media (prefers-color-scheme: dark) {
+      .brace { fill: #f97316; }
+      .letters { fill: #fff; }
+    }
+  </style>
+  <text x="32" y="32" text-anchor="middle" dominant-baseline="central" font-family="'Fragment Mono', monospace" font-size="22" letter-spacing="-2">
+    <tspan class="brace">{</tspan><tspan class="letters" font-weight="700">ab</tspan><tspan class="brace">}</tspan>
+  </text>
+</svg>
