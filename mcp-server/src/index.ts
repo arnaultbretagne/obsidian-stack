@@ -18,14 +18,6 @@ async function main() {
     res.json({ status: "ok" });
   });
 
-  // ── Favicon ──────────────────────────────────────────────
-
-  app.get("/favicon.svg", (_req, res) => {
-    res.type("image/svg+xml").sendFile("assets/favicon.svg", {
-      root: import.meta.dirname,
-    });
-  });
-
   // ── RFC 9728: Protected Resource Metadata ───────────────
 
   app.get("/.well-known/oauth-protected-resource", (_req, res) => {
