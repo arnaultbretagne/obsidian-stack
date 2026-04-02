@@ -1,0 +1,52 @@
+{
+  "properties": {
+    "source": {
+      "description": "Original URL of the clipped or referenced content",
+      "searchable": true
+    },
+    "title": {
+      "description": "Title of the note or clipped article",
+      "searchable": false
+    },
+    "type": {
+      "description": "Category of the note (tool, article, clipping, moc, research-note...)",
+      "searchable": true
+    },
+    "domain": {
+      "description": "Knowledge domain the note belongs to (e.g. agent-orchestration)",
+      "searchable": true
+    },
+    "author": {
+      "description": "Author(s) of the original content",
+      "searchable": false
+    },
+    "created": {
+      "description": "Date the note was created in the vault",
+      "searchable": false
+    },
+    "summary": {
+      "description": "Short editorial summary written by the curator",
+      "searchable": false
+    },
+    "description": {
+      "description": "AI-generated summary of the content",
+      "searchable": false
+    },
+    "questions": {
+      "description": "Open questions raised by the content",
+      "searchable": false
+    },
+    "entities": {
+      "description": "Notable people, organizations, or tools mentioned",
+      "searchable": true
+    },
+    "tags": {
+      "description": "Categorization tags for the note",
+      "searchable": true
+    },
+    "schema_version": {
+      "description": "Version of the frontmatter schema used by this note",
+      "searchable": false
+    }
+  }
+}

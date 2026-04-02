@@ -190,3 +190,34 @@ export async function moveNote(
   await mkdir(path.dirname(absTo), { recursive: true });
   await rename(absFrom, absTo);
 }
+
+// ── MCP schema ─────────────────────────────────────────────
+
+export async function updateMcpSchema(
+  property: string,
+  updates: { description?: string; searchable?: boolean },
+): Promise<void> {
+  const { vaultPath } = getConfig();
+  const schemaPath = path.join(vaultPath, ".obsidian/mcp-schema.json");
+
+  let schema: { properties: Record<string, Record<string, unknown>> };
+  try {
+    const raw = await readFile(schemaPath, "utf-8");
+    schema = JSON.parse(raw);
+  } catch {
+    schema = { properties: {} };
+  }
+
+  if (!schema.properties[property]) {
+    schema.properties[property] = {};
+  }
+
+  if (updates.description !== undefined) {
+    schema.properties[property].description = updates.description;
+  }
+  if (updates.searchable !== undefined) {
+    schema.properties[property].searchable = updates.searchable;
+  }
+
+  await writeFile(schemaPath, JSON.stringify(schema, null, 2) + "\n", "utf-8");
+}
