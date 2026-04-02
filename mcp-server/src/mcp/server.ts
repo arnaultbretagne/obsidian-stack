@@ -12,6 +12,7 @@ import { registerListProperties } from "./tools/list-properties.js";
 import { registerGetPropertyValues } from "./tools/get-property-values.js";
 import { registerUpdateSchema } from "./tools/update-schema.js";
 import { registerClipUrl } from "./tools/clip-url.js";
+import { registerClipToVault } from "./prompts/clip-to-vault.js";
 
 const favicon = readFileSync(
   new URL("../assets/favicon.svg", import.meta.url),
@@ -32,7 +33,7 @@ export function createMcpServer(): McpServer {
       ],
     },
     {
-      capabilities: { tools: {} },
+      capabilities: { tools: {}, prompts: {} },
       instructions: [
         "This MCP server exposes an Obsidian vault as composable tools.",
         "Start with list_properties to understand the vault's property schema.",
@@ -59,6 +60,9 @@ export function createMcpServer(): McpServer {
   registerGetPropertyValues(server);
   registerUpdateSchema(server);
   registerClipUrl(server);
+
+  // Prompts
+  registerClipToVault(server);
 
   return server;
 }
