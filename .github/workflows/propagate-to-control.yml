@@ -75,4 +75,4 @@ jobs:
           )" \
             --label promotion)
 
-          gh pr merge "$PR_URL" --auto --squash --repo ab-craft/infra-control
+          gh pr merge "$PR_URL" --squash --repo ab-craft/infra-control
