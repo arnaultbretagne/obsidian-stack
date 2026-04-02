@@ -8,11 +8,10 @@ import { registerMoveNote } from "./tools/move-note.js";
 import { registerSearchContent } from "./tools/search-content.js";
 import { registerSearchProperties } from "./tools/search-properties.js";
 import { registerGetBacklinks } from "./tools/get-backlinks.js";
+import { registerListProperties } from "./tools/list-properties.js";
 import { registerGetPropertyValues } from "./tools/get-property-values.js";
 import { registerUpdateSchema } from "./tools/update-schema.js";
 import { registerClipUrl } from "./tools/clip-url.js";
-import { registerTemplateResources } from "./resources/templates.js";
-import { registerSchemaResource } from "./resources/schema.js";
 
 const favicon = readFileSync(
   new URL("../assets/favicon.svg", import.meta.url),
@@ -33,12 +32,12 @@ export function createMcpServer(): McpServer {
       ],
     },
     {
-      capabilities: { tools: {}, resources: {} },
+      capabilities: { tools: {} },
       instructions: [
-        "This MCP server exposes an Obsidian vault via tools and resources.",
-        "Start by reading vault://schema/properties to understand the vault's property schema.",
+        "This MCP server exposes an Obsidian vault as composable tools.",
+        "Start with list_properties to understand the vault's property schema.",
         "Use get_property_values to drill into specific properties (prefer those marked searchable).",
-        "Use vault://template/{name} resources to see frontmatter templates for note creation.",
+        "Templates are in the Templates/ folder — use read_note to inspect them before creating notes.",
         "Use search_properties to find notes by metadata (type, tags, domain...).",
         "Use search_content to find notes discussing a topic.",
         "Always read_note before update_note to see current content.",
@@ -48,11 +47,6 @@ export function createMcpServer(): McpServer {
     },
   );
 
-  // Resources
-  registerSchemaResource(server);
-  registerTemplateResources(server);
-
-  // Tools
   registerCreateNote(server);
   registerReadNote(server);
   registerUpdateNote(server);
@@ -61,6 +55,7 @@ export function createMcpServer(): McpServer {
   registerSearchContent(server);
   registerSearchProperties(server);
   registerGetBacklinks(server);
+  registerListProperties(server);
   registerGetPropertyValues(server);
   registerUpdateSchema(server);
   registerClipUrl(server);
