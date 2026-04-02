@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR 0009](0009-tools-over-resources.md)
 
 ## Context
 
