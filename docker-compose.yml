@@ -1,3 +1,6 @@
+# Local development harness — builds the three images from source against a
+# local ./vault directory. Production does NOT run from this file: it runs on
+# Kubernetes, manifests in the infra-k8s repo (see README "Deployment").
 name: obsidian-stack
 
 volumes:
@@ -8,28 +11,20 @@ volumes:
       o: bind
       device: ${VAULT_HOST_PATH:-./vault}
 
-networks:
-  shared:
-    name: proxy-network
-    external: true
-
 services:
   sync:
     build: ./sync
-    container_name: obsidian-sync
-    restart: unless-stopped
     volumes:
       - vault:/vault
       - ./sync-config:/home/node/.config/obsidian-headless
     environment:
-      OBSIDIAN_AUTH_TOKEN: ${OBSIDIAN_AUTH_TOKEN}
-      VAULT_NAME: ${VAULT_NAME}
+      OBSIDIAN_AUTH_TOKEN: ${OBSIDIAN_AUTH_TOKEN:-}
+      VAULT_NAME: ${VAULT_NAME:-}
     stop_grace_period: 30s
-    networks: [shared]
 
-  clipper:
+  # Service name is a contract: the MCP server hardcodes http://web-clipper:3000
+  web-clipper:
     build: ./clipper
-    container_name: web-clipper
     volumes:
       - vault:/vault
     environment:
@@ -38,10 +33,10 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-info}
       MODE: server
       PORT: ${PORT:-3000}
-    ipc: host
+    shm_size: 512m          # Chromium shared memory
     init: true
-    expose: ["3000"]
-    networks: [shared]
+    ports:
+      - "3000:3000"
     deploy:
       resources:
         limits:
@@ -49,19 +44,17 @@ services:
 
   mcp-server:
     build: ./mcp-server
-    container_name: vault-mcp
-    restart: unless-stopped
     volumes:
       - vault:/vault
     environment:
       VAULT_PATH: /vault
       MCP_PORT: ${MCP_PORT:-4000}
-      MCP_SERVER_URL: ${MCP_SERVER_URL:-https://vault.bretagne.dev}
-      POCKET_ID_ISSUER: ${POCKET_ID_ISSUER:-https://id.bretagne.dev}
+      MCP_SERVER_URL: ${MCP_SERVER_URL:-http://localhost:4000}
+      POCKET_ID_ISSUER: ${POCKET_ID_ISSUER:-https://id.example.com}
       LOG_LEVEL: ${LOG_LEVEL:-info}
-    expose: ["4000"]
-    networks: [shared]
-    depends_on: [clipper]
+    ports:
+      - "4000:4000"
+    depends_on: [web-clipper]
     deploy:
       resources:
         limits:

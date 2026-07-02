@@ -100,11 +100,11 @@ const tests: TestCase[] = [
         fn: (ctx) => parseFrontmatter(ctx.fileContent ?? "").type === "clipping",
       },
       {
-        field: "frontmatter.source", check: "source URL présente",
+        field: "frontmatter.source", check: "source URL present",
         fn: (ctx) => parseFrontmatter(ctx.fileContent ?? "").source?.includes("paulgraham.com") ?? false,
       },
       {
-        field: "frontmatter.schema_version", check: "schema_version présent",
+        field: "frontmatter.schema_version", check: "schema_version present",
         fn: (ctx) => parseFrontmatter(ctx.fileContent ?? "").schema_version === "1",
       },
       {
@@ -128,7 +128,7 @@ const tests: TestCase[] = [
         fn: (ctx) => (ctx.result?.wordCount ?? 999) < 100,
       },
       {
-        field: "frontmatter.source", check: "source URL présente",
+        field: "frontmatter.source", check: "source URL present",
         fn: (ctx) => parseFrontmatter(ctx.fileContent ?? "").source === "https://example.com",
       },
     ],
@@ -241,14 +241,14 @@ const tests: TestCase[] = [
     template: "default",
     assertions: [
       {
-        field: "status", check: "gestion d'erreur gracieuse (résultat ou erreur capturée)",
+        field: "status", check: "graceful error handling (result or captured error)",
         fn: (ctx) => ctx.error !== undefined || ctx.result !== undefined,
       },
     ],
   },
   {
     id: "T9",
-    label: "Options CLI combinées",
+    label: "Combined CLI options",
     url: "https://example.com",
     options: {
       tags: ["test", "cli", "combo"],
@@ -257,11 +257,11 @@ const tests: TestCase[] = [
     },
     assertions: [
       {
-        field: "frontmatter.tags", check: "tags présents dans frontmatter",
+        field: "frontmatter.tags", check: "tags present in frontmatter",
         fn: (ctx) => (ctx.fileContent ?? "").includes("test"),
       },
       {
-        field: "filePath", check: "folder override appliqué",
+        field: "filePath", check: "folder override applied",
         fn: (ctx) => (ctx.result?.filePath ?? "").includes("cli-combo"),
       },
       {
@@ -272,7 +272,7 @@ const tests: TestCase[] = [
   },
   {
     id: "T10",
-    label: "Titre avec caractères spéciaux",
+    label: "Title with special characters",
     url: "https://en.wikipedia.org/wiki/C%2B%2B",
     template: "default",
     assertions: [
@@ -281,7 +281,7 @@ const tests: TestCase[] = [
         fn: (ctx) => (ctx.result?.title ?? "").includes("C++"),
       },
       {
-        field: "filePath", check: "nom de fichier sanitisé (pas de caractères interdits)",
+        field: "filePath", check: "sanitized file name (no forbidden characters)",
         fn: (ctx) => !/[<>:"/\\|?*]/.test(path.basename(ctx.result?.filePath ?? "")),
       },
     ],

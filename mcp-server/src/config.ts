@@ -3,8 +3,10 @@ import { z } from "zod";
 const envSchema = z.object({
   VAULT_PATH: z.string().default("/vault"),
   MCP_PORT: z.coerce.number().int().positive().default(4000),
-  MCP_SERVER_URL: z.string().default("https://vault.bretagne.dev"),
-  POCKET_ID_ISSUER: z.string().default("https://id.bretagne.dev"),
+  // No defaults: these are deployment-specific (OAuth resource metadata +
+  // JWT issuer) — failing fast beats silently pointing at someone else's IdP.
+  MCP_SERVER_URL: z.string().url(),
+  POCKET_ID_ISSUER: z.string().url(),
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
 });
 
