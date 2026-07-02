@@ -16,7 +16,7 @@ export function registerReadNote(server: McpServer): void {
       inputSchema: {
         path: z
           .string()
-          .regex(/\.md$/, "Path must end in .md")
+          .regex(/.+\.md$/, "Path must end in .md")
           .describe("Relative path in the vault"),
       },
     },

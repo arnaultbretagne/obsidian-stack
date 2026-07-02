@@ -23,7 +23,7 @@ export function registerUpdateNote(server: McpServer): void {
       inputSchema: {
         path: z
           .string()
-          .regex(/\.md$/, "Path must end in .md")
+          .regex(/.+\.md$/, "Path must end in .md")
           .describe("Relative path to the note"),
         old_string: z
           .string()

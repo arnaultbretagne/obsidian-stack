@@ -16,7 +16,7 @@ export function registerGetBacklinks(server: McpServer): void {
       inputSchema: {
         path: z
           .string()
-          .regex(/\.md$/, "Path must end in .md")
+          .regex(/.+\.md$/, "Path must end in .md")
           .describe("Relative path of the target note"),
       },
     },

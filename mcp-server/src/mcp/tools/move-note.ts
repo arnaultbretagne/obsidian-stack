@@ -17,11 +17,11 @@ export function registerMoveNote(server: McpServer): void {
       inputSchema: {
         from_path: z
           .string()
-          .regex(/\.md$/, "Path must end in .md")
+          .regex(/.+\.md$/, "Path must end in .md")
           .describe("Current path of the note"),
         to_path: z
           .string()
-          .regex(/\.md$/, "Path must end in .md")
+          .regex(/.+\.md$/, "Path must end in .md")
           .describe("New path for the note"),
       },
     },

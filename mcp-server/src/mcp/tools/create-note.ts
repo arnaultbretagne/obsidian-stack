@@ -28,7 +28,7 @@ export function registerCreateNote(server: McpServer): void {
       inputSchema: {
         path: z
           .string()
-          .regex(/\.md$/, "Path must end in .md")
+          .regex(/.+\.md$/, "Path must end in .md")
           .describe("Relative path in the vault, e.g. 'Clippings/My Note.md'"),
         content: z
           .string()
