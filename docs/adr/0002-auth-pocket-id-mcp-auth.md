@@ -57,6 +57,30 @@ The setup is:
 - If Pocket ID adds RFC 8414 + DCR natively in the future, the shim can be removed.
 - The mcp-auth library is a dependency but it's lightweight (JWT validation + metadata endpoint).
 
+## Update (2026-07-04) — resource-server validation hardened (audit F-05)
+
+The first cut validated only the issuer + signature (`jwtVerify(token, jwks, { issuer })`).
+That accepts *any* token the same Pocket-ID mints — including one issued to another
+client for another resource (cross-service token confusion), which is unacceptable for
+a server that reads/writes the vault. The resource server now enforces, in `src/auth.ts`:
+
+- **Audience** — the token `aud` must contain this resource. Defaults to `MCP_SERVER_URL`
+  (the RFC 8707 `resource` value advertised in the protected-resource metadata; Pocket ID
+  binds it via the resource parameter). Overridable with `MCP_ALLOWED_AUDIENCE`.
+- **Algorithm pinning** — only `MCP_JWT_ALGS` (default `RS256`) accepted; no downgrade.
+- **Optional authz gates** (enforced only when set): `MCP_ALLOWED_CLIENT_IDS` (client_id/azp
+  allow-list), `MCP_REQUIRED_GROUPS`, `MCP_REQUIRED_SCOPES`. Left unset by default so a claim
+  shape the IdP may not emit can't lock the operator out; enable after checking a real token.
+
+A 401 means authentication failed (signature/issuer/audience/alg/expiry); a 403 means the
+token authenticated but failed a client/group/scope gate. Both carry an RFC 9728
+`WWW-Authenticate` header pointing at the protected-resource metadata. Negative + positive
+cases are covered in `mcp-server/src/auth.test.ts` (`npm test`).
+
+Note: the MCP client must be registered in Pocket ID (ADR decision step 4). It is **not** in
+the `pocket-id/oidc-reconciler` bijective `spec.json` today, so the reconciler would prune a
+hand-registered client — track adding it there.
+
 ## Links
 
 - [mcp-auth.dev](https://mcp-auth.dev/docs) — MCP resource server auth toolkit

@@ -1,9 +1,10 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { createRemoteJWKSet, jwtVerify } from "jose";
-import type { Request, Response, NextFunction } from "express";
+import { createRemoteJWKSet } from "jose";
+import type { Request, Response } from "express";
 import { loadConfig } from "./config.js";
+import { createRequireAuth, policyFromConfig } from "./auth.js";
 import { createMcpServer } from "./mcp/server.js";
 import { log } from "./logger.js";
 
@@ -47,39 +48,21 @@ async function main() {
   const jwks = createRemoteJWKSet(new URL(oidcConfig.jwks_uri));
   log.info("JWKS loaded", { jwks_uri: oidcConfig.jwks_uri });
 
-  const requireAuth = async (
-    req: Request,
-    res: Response,
-    next: NextFunction,
-  ): Promise<void> => {
-    const header = req.headers.authorization;
-    if (!header?.startsWith("Bearer ")) {
-      res.status(401).json({ error: "Missing Bearer token" });
-      return;
-    }
-
-    const token = header.slice(7);
-    try {
-      const { payload } = await jwtVerify(token, jwks, {
-        issuer: config.issuer,
-      });
-      // Attach auth info for the MCP transport
-      (req as Request & { auth?: unknown }).auth = {
-        token,
-        clientId:
-          (payload.client_id as string) ??
-          (payload.azp as string) ??
-          "",
-        scopes: ((payload.scope as string) ?? "")
-          .split(" ")
-          .filter(Boolean),
-        expiresAt: payload.exp,
-      };
-      next();
-    } catch {
-      res.status(401).json({ error: "Invalid or expired token" });
-    }
-  };
+  // Token is bound to THIS resource, not just the issuer (audit F-05).
+  const policy = policyFromConfig(config);
+  log.info("token policy", {
+    issuer: policy.issuer,
+    audiences: policy.audiences,
+    algorithms: policy.algorithms,
+    allowedClientIds: policy.allowedClientIds ?? "(any)",
+    requiredGroups: policy.requiredGroups ?? "(none)",
+    requiredScopes: policy.requiredScopes ?? "(none)",
+  });
+  const requireAuth = createRequireAuth(
+    jwks,
+    policy,
+    `${config.serverUrl}/.well-known/oauth-protected-resource`,
+  );
 
   // ── Session store ──────────────────────────────────────
 
