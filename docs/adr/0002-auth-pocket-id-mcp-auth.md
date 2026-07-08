@@ -66,7 +66,9 @@ a server that reads/writes the vault. The resource server now enforces, in `src/
 
 - **Audience** — the token `aud` must contain this resource. Defaults to `MCP_SERVER_URL`
   (the RFC 8707 `resource` value advertised in the protected-resource metadata; Pocket ID
-  binds it via the resource parameter). Overridable with `MCP_ALLOWED_AUDIENCE`.
+  binds it via the resource parameter — **⚠️ only for the `client_credentials` grant; the
+  `authorization_code` connector flow ignores `resource` and sets `aud=client_id`, see Update
+  2026-07-08**). Overridable with `MCP_ALLOWED_AUDIENCE`.
 - **Algorithm pinning** — only `MCP_JWT_ALGS` (default `RS256`) accepted; no downgrade.
 - **Optional authz gates** (enforced only when set): `MCP_ALLOWED_CLIENT_IDS` (client_id/azp
   allow-list), `MCP_REQUIRED_GROUPS`, `MCP_REQUIRED_SCOPES`. Left unset by default so a claim
@@ -80,6 +82,52 @@ cases are covered in `mcp-server/src/auth.test.ts` (`npm test`).
 Note: the MCP client must be registered in Pocket ID (ADR decision step 4). It is **not** in
 the `pocket-id/oidc-reconciler` bijective `spec.json` today, so the reconciler would prune a
 hand-registered client — track adding it there.
+
+## Update (2026-07-08) — Pocket-ID `aud` binding is grant-type-dependent (why the Claude.ai connector broke)
+
+The F-05 Update above (and the Option-C analysis) assumed Pocket-ID binds the RFC 8707 `resource`
+into the token `aud` regardless of grant. Verified at source (`pocket-id/pocket-id`
+`backend/internal/service/oidc_service.go`, v2.5.0), that holds **only for the `client_credentials`
+grant**:
+
+```go
+// createTokenFromClientCredentials
+audClaim := client.ID
+if input.Resource != "" { audClaim = input.Resource }   // resource → aud, client_credentials only
+```
+
+For the **`authorization_code`** grant — the one the Claude.ai / Claude Code / Claude Desktop
+connectors use — Pocket-ID **ignores** `resource` and sets `aud = client_id`. (Its *internal session*
+token uses `aud = AppURL`; neither path yields `aud = MCP_SERVER_URL`.)
+
+**Consequence, observed in production:** once F-05 made `aud` mandatory (defaulting to
+`MCP_SERVER_URL = https://vault.bretagne.dev`), the Claude.ai connector's token — carrying
+`aud = <its client_id>` — failed the audience gate and the connector flipped to *"Needs
+authentication"*. Re-authenticating does **not** fix it: the fresh token has the same
+`aud = client_id`. This is structural, not a stale token.
+
+| Client | Grant | Token `aud` | Passes F-05 `aud=vault`? |
+|---|---|---|---|
+| A machine client | `client_credentials` + `resource=<this server>` | the `resource` value | **yes** |
+| Claude.ai / ChatGPT / Desktop connector | `authorization_code` (ignores `resource`) | `<client_id>` | **no** |
+
+**The fix (applied — infra-k8s `apps/obsidian/mcp-server.yaml`).** The audience gate cannot be
+satisfied via `resource` for the connectors, so accept their `client_id`s explicitly:
+`MCP_ALLOWED_AUDIENCE = https://vault.bretagne.dev,<claude_auth id>,<openai_auth id>`. This restores the
+connectors while keeping the cross-service protection — only tokens whose `aud` is the vault or one of
+*our* two connectors pass. After deploy, each connector must be re-authenticated once. Caveat: those are
+Pocket-ID-generated client_ids — if a connector client is recreated in the reconciler, its UUID changes
+and the list must be updated.
+
+**Group gate left off, on purpose.** `MCP_REQUIRED_GROUPS` stays unset: `claude_auth` / `openai_auth`
+are already `admin`-group-restricted at Pocket-ID (a non-admin never gets a token), so a vault-side
+group check is redundant defense-in-depth, needs a live token to confirm the `groups` claim actually
+flows (else it locks the operator out), and is deferred. This settles and replaces the former
+`infra-k8s/TODO - auth mcp.md`, now removed.
+
+**Note on `client_credentials` tokens:** they carry no `scope` and no user `groups` (Pocket-ID sets
+neither for that grant), so a machine client can only be authorized on `iss` + `aud` + `client_id`
+(`MCP_ALLOWED_CLIENT_IDS`), never on scope or group.
 
 ## Links
 
