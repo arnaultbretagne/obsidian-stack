@@ -184,6 +184,57 @@ test("scope gate: all required scopes present is accepted", async () => {
   assert.equal(res.ok, true);
 });
 
+// ── client_id gate: Pocket-ID grant shapes (machine sub vs connector) ────
+// Pocket-ID sets no client_id/azp on either grant's access token. A
+// client_credentials token is identified by sub="client-<uuid>"; an
+// authorization_code token has a user sub and is identified by its aud.
+const MACHINE = "11111111-1111-1111-1111-111111111111";
+const OTHER_MACHINE = "22222222-2222-2222-2222-222222222222";
+
+test("client_id gate: client_credentials token (sub=client-<uuid>) is identified by sub and allowed when listed", async () => {
+  const policy: AuthPolicy = { ...basePolicy, allowedClientIds: [MACHINE] };
+  const res = await authenticate(
+    await mint({ claims: { sub: `client-${MACHINE}` } }),
+    jwks,
+    policy,
+  );
+  assert.equal(res.ok, true);
+  assert.equal(res.ok === true && res.auth.clientId, MACHINE);
+});
+
+test("client_id gate: a forged-audience machine token is rejected via its real sub (403)", async () => {
+  // A rogue confidential client can echo any `resource` into `aud` (Pocket-ID,
+  // client_credentials) — but its `sub` is its own client id, not the broker's.
+  const policy: AuthPolicy = { ...basePolicy, allowedClientIds: [MACHINE] };
+  const res = await authenticate(
+    await mint({ audience: RES, claims: { sub: `client-${OTHER_MACHINE}` } }),
+    jwks,
+    policy,
+  );
+  assert.equal(res.ok, false);
+  assert.equal(res.ok === false && res.status, 403);
+});
+
+test("client_id gate: an authorization_code token (user sub, no azp/client_id) is not locked out", async () => {
+  // Its identity is `aud` (governed by the audience gate); the client-id gate
+  // must let it through so the Claude.ai / ChatGPT connectors keep working.
+  const policy: AuthPolicy = { ...basePolicy, allowedClientIds: [MACHINE] };
+  const res = await authenticate(
+    await mint({ claims: { sub: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" } }),
+    jwks,
+    policy,
+  );
+  assert.equal(res.ok, true);
+});
+
+test("client_id gate: a non-uuid `client-…` sub is not treated as a client id (strict shape)", () => {
+  const r = authorizeClaims(
+    { sub: "client-not-a-uuid" } as never,
+    { ...basePolicy, allowedClientIds: [MACHINE] },
+  );
+  assert.equal(r.ok, true); // clientIdOf → "" (no strict uuid match); gate is a no-op
+});
+
 // ── authorizeClaims unit (claim-shape handling) ─────────────────────────
 
 test("authorizeClaims: groups accepted as a space-delimited string", () => {

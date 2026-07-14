@@ -21,7 +21,7 @@ const envSchema = z.object({
   MCP_ALLOWED_AUDIENCE: z.string().optional(),
   // Optional extra authorization gates — enforced only when set (leave unset to
   // avoid locking out a token shape you haven't confirmed against a real token):
-  MCP_ALLOWED_CLIENT_IDS: z.string().optional(), // CSV; token client_id/azp must be one of these
+  MCP_ALLOWED_CLIENT_IDS: z.string().optional(), // CSV; the token's client id (client_id/azp, or the client_credentials sub "client-<uuid>") must be one of these. Tokens with no client id (authorization_code) are left to the audience gate.
   MCP_REQUIRED_GROUPS: z.string().optional(), // CSV; token `groups` must include at least one
   MCP_REQUIRED_SCOPES: z.string().optional(), // CSV; token `scope` must include all of these
   // Signature algorithms to accept. Pinned so a token can't downgrade to an

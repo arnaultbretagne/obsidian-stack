@@ -126,8 +126,39 @@ flows (else it locks the operator out), and is deferred. This settles and replac
 `infra-k8s/TODO - auth mcp.md`, now removed.
 
 **Note on `client_credentials` tokens:** they carry no `scope` and no user `groups` (Pocket-ID sets
-neither for that grant), so a machine client can only be authorized on `iss` + `aud` + `client_id`
-(`MCP_ALLOWED_CLIENT_IDS`), never on scope or group.
+neither for that grant). They also carry **no `client_id` or `azp` claim** — the minting client is only
+in `sub = "client-<uuid>"` (verified at source, v2.5.0). A machine client is therefore authorized on
+`iss` + `aud` + its `sub`-derived client id, never on scope or group; see Update 2026-07-14.
+
+## Update (2026-07-14) — client-id gate keys on the machine `sub`; identity is never `aud`
+
+Two facts, both verified at source (`pocket-id/pocket-id`, v2.5.0) and against a live token:
+
+1. **`aud` is attacker-chosen for `client_credentials`.** `createTokenFromClientCredentials` echoes the
+   request's `resource` into `aud` with no validation — `resource=<anything>` → `aud=[<anything>]`,
+   including a bare non-URL or *another client's id*. So any confidential client (grafana, stremio, …)
+   can mint `aud=https://vault.bretagne.dev` and clear the audience gate. `aud` proves **intent, not
+   identity** — the F-05 audience gate defends against accidental cross-service reuse, not a deliberate
+   confidential client.
+2. **Neither grant sets `client_id`/`azp` on the access token.** `client_credentials` identity is
+   `sub="client-<uuid>"`; `authorization_code` (the connectors) sets `sub=user.ID`, `aud=client_id` and
+   nothing else — it has *no* derivable client id.
+
+Consequence for the optional `MCP_ALLOWED_CLIENT_IDS` gate (`src/auth.ts`):
+
+- `clientIdOf` now derives the client from IdP-asserted claims **only, never `aud`**: `client_id`/`azp`
+  when present, else the strict `sub = "client-<uuid>"` shape. An aud-forged token is thus rejected by
+  its real `sub` (the minting client, not the broker).
+- The gate rejects a token **only if it presents a client id not on the list** (`clientId && !allowed`).
+  A token with no client id (an `authorization_code` connector) is left to the audience gate — so
+  enabling the list no longer risks locking the connectors out.
+
+This makes `MCP_ALLOWED_CLIENT_IDS = <machine-broker client id>` the correct way to close fact #1: only
+the broker's `client_credentials` tokens reach the vault, while the connectors keep passing on `aud`.
+**Not yet enabled** — it lands with the vault-loges broker/gateway (a dedicated Pocket-ID client whose
+`client_secret` never enters a loge; loges reach the vault through the gateway with no bearer of their
+own, mirroring the agent-runtime inference-proxy). Negative + positive cases, incl. the
+forged-audience-rejected-by-`sub` case, are in `mcp-server/src/auth.test.ts` (`npm test`).
 
 ## Links
 
