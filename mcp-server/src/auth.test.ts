@@ -184,6 +184,57 @@ test("scope gate: all required scopes present is accepted", async () => {
   assert.equal(res.ok, true);
 });
 
+// ── client_id gate: Pocket-ID grant shapes (machine sub vs connector) ────
+// Pocket-ID sets no client_id/azp on either grant's access token. A
+// client_credentials token is identified by sub="client-<uuid>"; an
+// authorization_code token has a user sub and is identified by its aud.
+const MACHINE = "11111111-1111-1111-1111-111111111111";
+const OTHER_MACHINE = "22222222-2222-2222-2222-222222222222";
+
+test("client_id gate: client_credentials token (sub=client-<uuid>) is identified by sub and allowed when listed", async () => {
+  const policy: AuthPolicy = { ...basePolicy, allowedClientIds: [MACHINE] };
+  const res = await authenticate(
+    await mint({ claims: { sub: `client-${MACHINE}` } }),
+    jwks,
+    policy,
+  );
+  assert.equal(res.ok, true);
+  assert.equal(res.ok === true && res.auth.clientId, MACHINE);
+});
+
+test("client_id gate: a forged-audience machine token is rejected via its real sub (403)", async () => {
+  // A rogue confidential client can echo any `resource` into `aud` (Pocket-ID,
+  // client_credentials) — but its `sub` is its own client id, not the broker's.
+  const policy: AuthPolicy = { ...basePolicy, allowedClientIds: [MACHINE] };
+  const res = await authenticate(
+    await mint({ audience: RES, claims: { sub: `client-${OTHER_MACHINE}` } }),
+    jwks,
+    policy,
+  );
+  assert.equal(res.ok, false);
+  assert.equal(res.ok === false && res.status, 403);
+});
+
+test("client_id gate: an authorization_code token (user sub, no azp/client_id) is not locked out", async () => {
+  // Its identity is `aud` (governed by the audience gate); the client-id gate
+  // must let it through so the Claude.ai / ChatGPT connectors keep working.
+  const policy: AuthPolicy = { ...basePolicy, allowedClientIds: [MACHINE] };
+  const res = await authenticate(
+    await mint({ claims: { sub: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" } }),
+    jwks,
+    policy,
+  );
+  assert.equal(res.ok, true);
+});
+
+test("client_id gate: a non-uuid `client-…` sub is not treated as a client id (strict shape)", () => {
+  const r = authorizeClaims(
+    { sub: "client-not-a-uuid" } as never,
+    { ...basePolicy, allowedClientIds: [MACHINE] },
+  );
+  assert.equal(r.ok, true); // clientIdOf → "" (no strict uuid match); gate is a no-op
+});
+
 // ── authorizeClaims unit (claim-shape handling) ─────────────────────────
 
 test("authorizeClaims: groups accepted as a space-delimited string", () => {
@@ -197,4 +248,50 @@ test("authorizeClaims: groups accepted as a space-delimited string", () => {
 test("authorizeClaims: no gates configured always passes", () => {
   const r = authorizeClaims({} as never, basePolicy);
   assert.equal(r.ok, true);
+});
+
+// ── absent claims (agent-broker plan P5.1) ──────────────────────────────
+// Pocket-ID's token shapes differ per grant, so "the claim isn't there" is a normal case, not an
+// exotic one. Each gate must have a defined answer for it rather than throwing or, worse, passing.
+
+test("client_id gate: a token with NO sub at all presents no client identity — left to the audience gate", async () => {
+  // jwtVerify does not require `sub`. Such a token asserts no client identity, so the client gate
+  // has nothing to match: it must not be treated as "allowed" by accident, nor crash — the audience
+  // gate (already passed) is what governs it.
+  const policy: AuthPolicy = { ...basePolicy, allowedClientIds: ["a-client"] };
+  const token = await mint({ claims: {} });
+  const result = await authenticate(token, jwks, policy);
+  assert.equal(result.ok, true);
+  assert.equal(result.ok && result.auth.clientId, "");
+  assert.equal(result.ok && result.auth.subject, undefined);
+});
+
+test("group gate: a token with NO groups claim is rejected (403), not passed through", async () => {
+  const policy: AuthPolicy = { ...basePolicy, requiredGroups: ["vault-users"] };
+  const result = await authenticate(await mint({ claims: {} }), jwks, policy);
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.status, 403);
+  assert.equal(!result.ok && result.error, "missing required group");
+});
+
+test("scope gate: a token with NO scope claim is rejected (403), not passed through", async () => {
+  const policy: AuthPolicy = { ...basePolicy, requiredScopes: ["vault:read"] };
+  const result = await authenticate(await mint({ claims: {} }), jwks, policy);
+  assert.equal(result.ok, false);
+  assert.equal(!result.ok && result.status, 403);
+  assert.equal(!result.ok && result.error, "missing required scope");
+});
+
+test("client_id gate: a machine token whose sub is a client NOT on the list is rejected (403)", () => {
+  // The P5 shape, stated plainly: the broker's machine client is allow-listed; any OTHER Pocket-ID
+  // machine client — even one that asks for the right `resource` and so gets the right `aud` — is
+  // refused, because its `sub` is its own client id and the IdP will not let it lie about that.
+  const broker = "11111111-2222-3333-4444-555555555555";
+  const other = "99999999-8888-7777-6666-555555555555";
+  const policy: AuthPolicy = { ...basePolicy, allowedClientIds: [broker] };
+  assert.deepEqual(authorizeClaims({ sub: `client-${broker}`, aud: RES }, policy), { ok: true });
+  assert.deepEqual(authorizeClaims({ sub: `client-${other}`, aud: RES }, policy), {
+    ok: false,
+    error: "client_id not allowed",
+  });
 });

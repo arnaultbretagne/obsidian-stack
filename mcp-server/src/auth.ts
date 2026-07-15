@@ -59,12 +59,29 @@ function claimList(value: unknown): string[] {
   return [];
 }
 
+// Derive the calling client's identity from IdP-asserted claims ONLY — never
+// from `aud`. Pocket-ID echoes the RFC 8707 `resource` verbatim into `aud` for
+// the client_credentials grant (verified at source, v2.5.0), so any confidential
+// client can mint a token with `aud=<anything>`; `aud` therefore proves intent,
+// not identity. The identity-bearing claims differ by grant:
+//   - authorization_code: Pocket-ID sets neither `client_id` nor `azp` on the
+//     access token, so this returns "" and the token is left to the audience
+//     gate (its `aud` is its own client_id, unforgeable in that grant).
+//   - client_credentials: no `client_id`/`azp` either; the client is only in
+//     `sub = "client-<uuid>"`. Matching that exact shape lets a machine client be
+//     gated by MCP_ALLOWED_CLIENT_IDS, and makes an aud-forged token fail — its
+//     `sub` is the real minting client, not the broker.
+const CLIENT_CREDENTIALS_SUB =
+  /^client-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+
 function clientIdOf(payload: JWTPayload): string {
-  return (
+  const explicit =
     (payload.client_id as string | undefined) ??
-    (payload.azp as string | undefined) ??
-    ""
-  );
+    (payload.azp as string | undefined);
+  if (explicit) return explicit;
+  const sub = typeof payload.sub === "string" ? payload.sub : "";
+  const match = CLIENT_CREDENTIALS_SUB.exec(sub);
+  return match ? match[1] : "";
 }
 
 /**
@@ -78,7 +95,12 @@ export function authorizeClaims(
 ): { ok: true } | { ok: false; error: string } {
   if (policy.allowedClientIds?.length) {
     const clientId = clientIdOf(payload);
-    if (!clientId || !policy.allowedClientIds.includes(clientId)) {
+    // Reject only a token that PRESENTS a client identity not on the allow-list.
+    // A token with no IdP-asserted client identity (an authorization_code access
+    // token — Pocket-ID sets no azp/client_id there, v2.5.0) has clientId === ""
+    // and is governed by the audience gate instead. Rejecting "" here would lock
+    // out the Claude.ai / ChatGPT connectors (audit F-05 Update 2026-07-08).
+    if (clientId && !policy.allowedClientIds.includes(clientId)) {
       return { ok: false, error: "client_id not allowed" };
     }
   }
