@@ -29,12 +29,27 @@ const envSchema = z.object({
   MCP_JWT_ALGS: z.string().default("RS256"),
 });
 
-function csv(value: string | undefined): string[] | undefined {
+/**
+ * CSV → list, distinguishing ABSENT from PRESENT-BUT-BLANK.
+ *
+ * Absent is the documented way to leave a gate unconfigured. Blank is a mistake — a SOPS value that
+ * didn't render, a typo'd override, an `env: {name: X, value: ""}` — and treating it as "absent"
+ * would turn a SECURITY gate off while every config dump still shows the variable as set. Fail loudly
+ * at boot instead: a resource server that silently stops enforcing its client allow-list is the exact
+ * failure this gate exists to prevent.
+ */
+function csv(name: string, value: string | undefined): string[] | undefined {
+  if (value === undefined) return undefined;
   const parts = value
-    ?.split(",")
+    .split(",")
     .map((s) => s.trim())
     .filter(Boolean);
-  return parts && parts.length > 0 ? parts : undefined;
+  if (parts.length === 0) {
+    throw new Error(
+      `${name} is set but empty — unset it to leave the gate off, or give it a value. Refusing to start with a gate that reads as configured but enforces nothing.`,
+    );
+  }
+  return parts;
 }
 
 export interface AppConfig {
@@ -59,11 +74,11 @@ export function loadConfig(): AppConfig {
     serverUrl: env.MCP_SERVER_URL,
     issuer: env.POCKET_ID_ISSUER,
     logLevel: env.LOG_LEVEL,
-    allowedAudiences: csv(env.MCP_ALLOWED_AUDIENCE) ?? [env.MCP_SERVER_URL],
-    allowedClientIds: csv(env.MCP_ALLOWED_CLIENT_IDS),
-    requiredGroups: csv(env.MCP_REQUIRED_GROUPS),
-    requiredScopes: csv(env.MCP_REQUIRED_SCOPES),
-    jwtAlgorithms: csv(env.MCP_JWT_ALGS) ?? ["RS256"],
+    allowedAudiences: csv("MCP_ALLOWED_AUDIENCE", env.MCP_ALLOWED_AUDIENCE) ?? [env.MCP_SERVER_URL],
+    allowedClientIds: csv("MCP_ALLOWED_CLIENT_IDS", env.MCP_ALLOWED_CLIENT_IDS),
+    requiredGroups: csv("MCP_REQUIRED_GROUPS", env.MCP_REQUIRED_GROUPS),
+    requiredScopes: csv("MCP_REQUIRED_SCOPES", env.MCP_REQUIRED_SCOPES),
+    jwtAlgorithms: csv("MCP_JWT_ALGS", env.MCP_JWT_ALGS) ?? ["RS256"],
   };
 }
 

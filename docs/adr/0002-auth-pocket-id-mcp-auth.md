@@ -160,6 +160,19 @@ the broker's `client_credentials` tokens reach the vault, while the connectors k
 own, mirroring the agent-runtime inference-proxy). Negative + positive cases, incl. the
 forged-audience-rejected-by-`sub` case, are in `mcp-server/src/auth.test.ts` (`npm test`).
 
+## Update (2026-07-15) — a blank gate variable is fatal, not "off"
+
+Found while readying this gate for the broker (agent-broker plan P5.1). `csv()` mapped a variable that
+was **set but blank** to `undefined`, i.e. exactly the same as absent — so `MCP_ALLOWED_CLIENT_IDS=""`
+turned the allow-list **off** while every config dump, every manifest and every review still showed the
+variable as configured. A SOPS value that failed to render, or an `env: {name: …, value: ""}`, would
+have silently un-gated the vault at the precise moment we started relying on the gate.
+
+Absent and blank are now different things: absent leaves a gate off (the documented, deliberate way);
+blank refuses to start. The rule applies to all four list gates (`MCP_ALLOWED_CLIENT_IDS`,
+`MCP_ALLOWED_AUDIENCE`, `MCP_REQUIRED_GROUPS`, `MCP_REQUIRED_SCOPES`) — a security gate must never be
+able to read as configured while enforcing nothing. Pinned by `mcp-server/src/config.test.ts`.
+
 ## Links
 
 - [mcp-auth.dev](https://mcp-auth.dev/docs) — MCP resource server auth toolkit
